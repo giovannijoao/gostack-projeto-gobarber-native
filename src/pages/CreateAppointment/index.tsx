@@ -50,7 +50,7 @@ export interface AvailabilityItem {
 const CreateAppointment: React.FC = () => {
   const route = useRoute();
   const { user } = useAuth();
-  const { goBack, navigate } = useNavigation();
+  const { goBack, navigate, reset } = useNavigation();
   const routeParams = route.params as RouteParams;
 
   const [providers, setProviders] = useState<IProvider[]>([]);
@@ -133,8 +133,19 @@ const CreateAppointment: React.FC = () => {
         provider_id: selectedProvider,
         date,
       });
-      navigate('AppointmentCreated', {
-        date: date.getTime(),
+      reset({
+        routes: [
+          {
+            name: 'Dashboard',
+          },
+          {
+            name: 'AppointmentCreated',
+            params: {
+              date: date.getTime(),
+            },
+          },
+        ],
+        index: 1,
       });
     } catch (error) {
       Alert.alert(
