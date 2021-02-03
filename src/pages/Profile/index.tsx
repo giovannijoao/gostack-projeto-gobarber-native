@@ -28,11 +28,13 @@ import {
 interface SignUpFormData {
   name: string;
   email: string;
+  old_password: string;
   password: string;
+  password_confirmation: string;
 }
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigation = useNavigation();
   const formRef = useRef<FormHandles>(null);
   const emailInputRef = useRef<TextInput>(null);
@@ -49,16 +51,37 @@ const Profile: React.FC = () => {
           email: Yup.string()
             .required('Email obrigatório')
             .email('Digite um e-mail válido'),
-          password: Yup.string().min(6, 'No mínimo 6 dígitos'),
+          old_password: Yup.string(),
+          password: Yup.string().when('old_password', {
+            is: val => val,
+            then: Yup.string().required('Campo obrigatório'),
+            otherwise: Yup.string(),
+          }),
+          password_confirmation: Yup.string()
+            .when('old_password', {
+              is: val => val,
+              then: Yup.string().required('Campo obrigatório'),
+              otherwise: Yup.string(),
+            })
+            .oneOf([Yup.ref('password')], 'Confirmação incorreta'),
         });
         await schema.validate(data, {
           abortEarly: false,
         });
-        await api.post('/users', data);
-        Alert.alert(
-          'Cadastro realizado!',
-          'Você já pode fazer seu logon no GoBarber!',
-        );
+        const response = await api.put('/profile', {
+          name: data.name,
+          email: data.email,
+          ...(data.old_password
+            ? {
+                old_password: data.old_password,
+                password: data.password,
+                password_confirmation: data.password_confirmation,
+              }
+            : {}),
+        });
+        updateUser(response.data);
+
+        Alert.alert('Perfil atualizado com sucesso');
         navigation.goBack();
       } catch (err) {
         if (err instanceof Yup.ValidationError) {
@@ -66,8 +89,8 @@ const Profile: React.FC = () => {
           return;
         }
         Alert.alert(
-          'Erro na cadastro',
-          'Ocorreu um erro ao fazer cadastro, tente novamente.',
+          'Erro ao atualizar perfil',
+          'Ocorreu um erro ao atualizar perfil, tente novamente.',
         );
       }
     },
@@ -102,7 +125,14 @@ const Profile: React.FC = () => {
             <View>
               <Title>Meu Perfil</Title>
             </View>
-            <Form ref={formRef} onSubmit={handleSignUp}>
+            <Form
+              ref={formRef}
+              onSubmit={handleSignUp}
+              initialData={{
+                name: user.name,
+                email: user.email,
+              }}
+            >
               <Input
                 autoCapitalize="words"
                 name="name"
