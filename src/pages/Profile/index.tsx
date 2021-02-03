@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as Yup from 'yup';
 import Icon from 'react-native-vector-icons/Feather';
+import { launchImageLibrary } from 'react-native-image-picker';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { useAuth } from '../../hooks/auth';
@@ -34,7 +35,7 @@ interface SignUpFormData {
 }
 
 const Profile: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, signOut } = useAuth();
   const navigation = useNavigation();
   const formRef = useRef<FormHandles>(null);
   const emailInputRef = useRef<TextInput>(null);
@@ -96,10 +97,36 @@ const Profile: React.FC = () => {
     },
     [navigation, updateUser],
   );
-
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+  const handleUpdateAvatar = useCallback(() => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+      },
+      imageResponse => {
+        if (imageResponse.didCancel) {
+          return;
+        }
+
+        if (imageResponse.errorCode) {
+          Alert.alert('Erro ao atualizar seu avatar');
+          return;
+        }
+
+        const data = new FormData();
+        data.append('avatar', {
+          type: 'image/jpeg',
+          name: `${user.id}.jpg`,
+          uri: imageResponse.uri,
+        });
+        api.patch('users/avatar', data).then(response => {
+          updateUser(response.data);
+        });
+      },
+    );
+  }, [updateUser, user.id]);
 
   return (
     <>
@@ -118,8 +145,7 @@ const Profile: React.FC = () => {
             <BackButton onPress={handleGoBack}>
               <Icon name="chevron-left" size={24} color="#999591" />
             </BackButton>
-
-            <UserAvatarButton onPress={() => {}}>
+            <UserAvatarButton onPress={handleUpdateAvatar}>
               <UserAvatar source={{ uri: user.avatar_url }} />
             </UserAvatarButton>
             <View>
